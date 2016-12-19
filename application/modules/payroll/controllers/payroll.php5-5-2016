@@ -1,0 +1,956 @@
+<?php
+if (!defined('BASEPATH'))
+    exit('No direct script access allowed');
+
+class Payroll extends MX_Controller {
+
+    function __construct() {
+        parent::__construct();
+        $this->load->module('template');
+		$this->load->helper('cookie','payroll');
+     //  $this->load->language('leave', 'hindi');
+        $this->load->model("payroll_model");
+         $this->load->language('payroll', 'hindi');
+		     
+
+           //   $this->load->language('leave_approve', 'hindi');
+    }
+
+    /**
+     * Check if the user is logged in, if he's not, 
+     * send him to the login page
+     * @return void
+     */
+    public function index() {
+        if ($this->session->userdata('is_logged_in')) {
+            redirect('dashboard');
+        } else if ($this->session->userdata('admin_logged_in')) {
+            redirect('admin/dashboard');
+        } else {
+            $data['title'] = $this->lang->line('home_title');
+            $data['notice'] = $this->admin_notice->fetchnoticebyid();
+            $this->load->view('home', $data);
+        }
+    }
+
+    /**
+     * encript the datakey 
+     * @return mixed
+     */
+    function __encrip_password($datakey) {
+        return md5($datakey);
+    }
+
+    /**
+     * check the username and the password with the database
+     * @return void
+     */
+    
+    public function uploadfile()
+    {
+      $this->load->view("uploadfrom");
+    }
+ function do_upload() {
+        //print_r($_FILES);//die;
+        $config = array(
+            'upload_path'   => './uploads/payroll/',
+            'allowed_types' => 'csv',
+            'max_size'      => '100',
+            'max_width'     => '1024',
+            'max_height'    => '768',
+            'encrypt_name'  => true,
+        );
+
+        $this->load->library('upload', $config);
+
+        if (!$this->upload->do_upload()) {
+            $error = array('error' => $this->upload->display_errors());
+            $this->load->view('uploadfrom', $error);
+        } else {
+            $upload_data = $this->upload->data();
+           print_r($upload_data['file_name']);
+
+            $filename = $upload_data['file_name'];
+            $filepsth = $upload_data['file_path'];
+              $handle = fopen($filepsth.$filename,"r");
+            //$content = file_get_contents($filepsth.$filename);
+           $content = fgetcsv($handle, 1000, ","); 
+          ///$content = explode(",",$content);
+           if (($handle = fopen($filepsth.$filename,"r")) !== FALSE) {
+    while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+       // $sql = "INSERT INTO record ( id, name, marks) VALUES ( '".mysql_escape_string($data[0])."','".mysql_escape_string($data[1])."','".mysql_escape_string($data[2])."')";
+        //$query = mysql_query($sql);
+        if($query){
+            echo "row inserted\n";
+        }
+        else{
+            echo die(mysql_error());
+        }
+    }
+    fclose($handle);
+}
+die();
+			$insertvalue = array(
+			 'pay_emp_unique_id'=> $content[1],
+                'pay_month'      => "march",
+                'pay_basic'     => $content[3],
+                'pay_special'    => $content[4],
+                'pay_da'      => $content[5],
+                'pay_hra'      => $content[7],
+                'pay_sa'      => $content[8],
+				'pay_madical' => $content[9],
+				'pay_total_sum'=> $content[10],
+				'pay_dpf'=> "",
+				'pay_dpf_adv'=>"",
+				'pay_gpf'=> $content[11],
+				'pay_gpf_adv'=> $content[12],
+				'pay_defined_contribution'=>"",
+				'pay_gias'=>$content[13],
+				'pay_house_loan'=>$content[14],
+				'pay_house_rent'=>"",
+				'pay_car_loan'=>$content[15],
+				'pay_fuel_charge'=>$content[16],
+				'pay_grain_adv'=>"",
+				'pay_festival_adv'=>"",
+				'pay_professional_tax'=>$content[17],
+				'pay_income_tax'=>$content[18],
+				'pay_other_adv'=>$content[19],
+				'pay_total_cut'=>$content[20],
+				'pay_total'=>$content[21],
+			);//pre($insertvalue);
+			 //$data['pay_regi'] = insertData($insertvalue , "ft_pay_register");
+			
+         //   die;
+     
+            //$this->load->database();
+           // $this->db->insert('upload', $data_ary);
+
+            //$data = array('upload_data' => $upload_data);
+           // $this->load->view('upload_success', $data);
+        }
+    }
+
+    public function register()
+    {
+
+         $data['title'] = $this->lang->line('pay_title');
+         $data['title_tab'] = $this->lang->line('view_all_employee');
+        // $data['details_leave'] = $this->payroll_model->getEmployeeLeave();
+      //  $data['pay_regi'] = $this->payroll_model->getpayroll();
+		// echo "fsdfsd";die();
+         $data['module_name'] = "payroll";
+          $data['view_file'] = "payroll/emp_register";
+        // $data['view_file'] = "payroll/register";
+         $this->template->index($data);
+      //$this->load->view('register',$data);
+    }
+    public function showrigtser()
+    {
+      $emp_id = $_GET["uid"];
+        $data['title'] = $this->lang->line('pay_title');
+         $data['title_tab'] = $this->lang->line('pay_title');
+         $data['pay_regi'] = $this->payroll_model->getpay($emp_id);
+          $data['emp_details'] = $this->payroll_model->getemp($emp_id);
+      foreach ($data['emp_details']as $key => $valueca) {
+        $pay_cate_id =$valueca->emp_pay_cate_id;
+
+      }
+      $condi =  array("pay_cate_id"=>$pay_cate_id );
+       $data['pay_basic'] = getsum('ft_pay_register' , '`pay_emp_unique_id` ='.$emp_id,'pay_basic');
+       //print_r($pay_basic);
+      $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+           $data['module_name'] = "payroll";
+          $data['view_file'] = "payroll/emp_register_details";
+        // $data['view_file'] = "payroll/register";
+          $this->template->index($data);
+
+    }
+
+	public function empslary()
+	{
+		
+		$emp_id = $this->uri->segment("3");
+	$data['title'] = $this->lang->line('emp_salary_details');
+		$data['pay_regi'] = $this->payroll_model->getpay($emp_id);
+		$data['emp_bank'] = $this->payroll_model->emp_bank($emp_id);
+		//pre($data['pay_regi']);
+		$data['module_name'] = "payroll";
+         $data['view_file'] = "payroll/emp_salary";
+         $this->template->index($data);
+	}
+    public function salary_mastar()
+    {
+        $data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+    
+        $data['pay_salary'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/salary_mastar";
+        $this->template->index($data);
+
+
+    }
+     public function addsalary(){
+        $data['title'] = $this->lang->line('emp_salary_details');
+
+    //pre($data['pay_regi']);
+    $data['module_name'] = "payroll";
+         $data['view_file'] = "payroll/emp_salary_details";
+         $this->template->index($data);
+    }
+    public function showdetails()
+    {
+       $emp_id = $_GET["emp_unique_codeemp_unique_code"];
+        $pay_month= $_GET["pay_month"];
+        
+      $last_month = Date('F', strtotime($pay_month . " last month"));
+$data['this_pay_month'] = $this->payroll_model->getpaymonth($emp_id,$pay_month);
+     $data['emp_details'] = $this->payroll_model->getemp($emp_id);
+       $data['emp_emi'] = $this->payroll_model->getemp_emi($emp_id);
+      foreach ($data['emp_details']as $key => $valueca) {
+        $pay_cate_id =$valueca->emp_pay_cate_id;
+
+      }
+      $condi =  array("pay_cate_id"=>$pay_cate_id );
+      $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+        
+    $data['emp_bank'] = $this->payroll_model->emp_bank($emp_id);
+     $data['adv'] = $this->payroll_model->advance();
+      if(count($data['this_pay_month']) == 0){
+       $data['pay_regi'] = $this->payroll_model->getpaymonth($emp_id,$last_month);
+   
+    //  $this->load->view("addsalary" ,$data);
+         // pre($data['dataval'] );
+         $data['module_name'] = "payroll";
+         $data['view_file'] = "payroll/addsalary";
+       }else{
+   $data['pay_regi'] = $this->payroll_model->getpaymonth($emp_id,$pay_month);
+   $data['module_name'] = "payroll";
+         $data['view_file'] = "payroll/wornmassage";
+
+       }
+         $this->template->index($data);
+    }
+    public function pay_modification()
+    {
+       $emp_id = $_GET["emp_unique_codeemp_unique_code"];
+          $pay_month= $_GET["pay_month"];
+        
+      $last_month = Date('F', strtotime($pay_month . " last month"));
+      $data['this_pay_month'] = $this->payroll_model->getpaymonth($emp_id,$pay_month);
+     $data['emp_details'] = $this->payroll_model->getemp($emp_id);
+       $data['emp_emi'] = $this->payroll_model->getemp_emi($emp_id);
+      foreach ($data['emp_details']as $key => $valueca) {
+        $pay_cate_id =$valueca->emp_pay_cate_id;
+
+      }
+      $condi =  array("pay_cate_id"=>$pay_cate_id );
+      $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+        
+    $data['emp_bank'] = $this->payroll_model->emp_bank($emp_id);
+     $data['adv'] = $this->payroll_model->advance();
+      $data['pay_regi'] = $this->payroll_model->getpaymonth($emp_id,$pay_month);
+   $data['module_name'] = "payroll";
+         $data['view_file'] = "payroll/modificatiosalary";
+               $this->template->index($data);
+
+    }
+      public function addcate()
+    {
+        $data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+    
+     
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/addcate";
+        $this->template->index($data);
+
+
+    }
+	public function advance()
+	{
+	           $data['title'] = $this->lang->line('tab3_pay_adv');
+        $data['title_tab'] = $this->lang->line('tab3_pay_adv');
+    
+      $data['pay_salary'] = $this->payroll_model->advance();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/advance";
+        $this->template->index($data);
+	}public function add_adv()
+	{
+	                  $data['title'] = $this->lang->line('tab3_pay_adv');
+        $data['title_tab'] = $this->lang->line('tab3_pay_adv');
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/add_adv";
+        $this->template->index($data);
+	}public function post_adv()
+	{
+	          $data = $this->input->post();
+			 $data['pay_regi'] = insertData($data , "ft_pay_advance_master");
+			 redirect('payroll/advance');
+        $this->template->index($data);
+	}
+    public function allcate(){
+
+           $data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+    
+      $data['pay_salary'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/allcate";
+        $this->template->index($data);
+    }
+    public function add_cate()
+    {
+        
+        $data = $this->input->post();
+
+        $data['pay_regi'] = insertData($data , "ft_pay_salary_category");
+        redirect('payroll/salary_mastar');
+    }
+    public function add_salary()
+    {
+		$data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+     // $data['details_leave'] = $this->payroll_model->salary_cate();
+        $data['pay_salary'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/salary_mastar";
+        $this->template->index($data);
+
+
+    }
+    public function empcate()
+    {
+                $emp_id = $this->uri->segment("3");
+                   $emp_month = $this->uri->segment("4");
+        $data['pay_salary'] = $this->payroll_model->salary_emp($emp_id,$emp_month);
+         $data['cate_salary'] = $this->payroll_model->cate_salary($emp_id);
+         $data['pay_bill'] = $this->payroll_model->pay_bill_cate($emp_id,$emp_month);
+          $condi =  array("pay_cate_id"=>$emp_id );
+$data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+        $this->load->view("empccate" , $data);
+
+    }
+    public function employee_list(){
+        $data['title'] = $this->lang->line('view_all_employee');
+        $data['title_tab'] = $this->lang->line('view_all_employee');
+        $data['details_leave'] = $this->payroll_model->getpayroll();
+
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll_employee";
+        $this->template->index($data);
+    }
+
+    public function show_404() {
+        $this->load->view('404');
+    }
+
+    public function faq() {
+        $data['title'] = 'FAQ'; //$this->lang->line('title_faq');
+        $this->load->view('faq', $data);
+    }
+
+    public function privacy_policy() {
+        $data['title'] = 'Privacy policy'; //$this->lang->line('title_faq');
+        $this->load->view('privacy_policy', $data);
+    }
+
+    public function departmental_setup() {
+        $data['title'] = 'Departmental setup'; //$this->lang->line('title_faq');
+        $this->load->view('departmental_setup', $data);
+    }
+
+
+    public function add_emp_salary()
+    {
+      print_r($_POST);
+      $emi = $this->payroll_model->getemp_emi($_POST['emp_unique_code']);
+      if($_POST['emp_unique_code'] != "")
+      {
+           $data['emp_details'] = $this->payroll_model->getemp($_POST['emp_unique_code']);
+            $ifemp = count($data['emp_details']);
+            if($ifemp == 1)
+            {
+              if(isset($_POST['pay_define'])){
+               $pay_define =$_POST['pay_define']; 
+              }else{
+               $pay_define=0;
+              }
+            if(isset($_POST['pay_madical'])){
+               $madical =$_POST['pay_madical'];
+              }else{
+               $madical=0;
+              }
+              if(isset($_POST['pay_gradepay'])){
+               $pay_gradepay =$_POST['pay_gradepay'];
+              }else{
+               $pay_gradepay=0;
+              }
+              if(isset($_POST['pay_special'])){
+               $pay_special =$_POST['pay_special'];
+              }else{
+               $pay_special=0;
+              }
+              $pay_ca = "";
+              if(isset($_POST['pay_ca'])){
+               $pay_ca =$_POST['pay_ca'];
+              }else{
+               $pay_ca =0;
+              }
+
+               if(isset($_POST['pay_fuel_charge'])){
+               $pay_fuel_charge =$_POST['pay_fuel_charge'];
+              }else{
+               $pay_fuel_charge=0;
+              }
+
+               $data['adv'] = $this->payroll_model->advance();
+               foreach ($data['adv']  as $key => $adv) {
+
+                
+              if(count($emi) == 0){
+               
+                if($_POST['starting_month_'.$adv->adv_id] != "")
+                {
+
+                  $p=$_POST['advance_amount_'.$adv->adv_id];
+                  echo $p ."<br/>";
+                    $r= $_POST['advance_inetrest_'.$adv->adv_id];
+                    echo $r."<br/>";
+                    $ti=$_POST['pay_income_tax_'.$adv->adv_id];   //yea$rly
+                    $t=10;  
+                   // $t=$t/$ti;
+                    $si = ($p*$r*$t)/100;
+                    echo "Simple Interest : ".$si;
+      
+                    $adv_date =date("Y-m-dd",strtotime($_POST['starting_month_'.$adv->adv_id]));
+                $dataadv = $arrayName = array(
+                  'pea_emp_unique_id' => $_POST['emp_unique_code'] ,
+                 'pea_type_id' => $adv->adv_id,
+                'pea_starting_month' => $adv_date,
+                 'pea_intrest_rate' => $_POST['advance_inetrest_'.$adv->adv_id],
+                 'pea_amount' => $_POST['advance_amount_'.$adv->adv_id],
+                  'pae_interest' => $_POST['advance_inetrest_'.$adv->adv_id],
+                   'pea_emi_amount' => $_POST['instalment_amount_'.$adv->adv_id],
+                   'pea_emi'=> $_POST['pay_income_tax_'.$adv->adv_id],
+                  
+                  );// echo $_POST['starting_month_'.$adv->adv_id]."---fgdfg--"; die();
+               // pre($dataadv ); 
+                $dataemi = array(
+                  'emi_emp_unique_id' => $_POST['emp_unique_code'] ,
+                  'emi_pay_date' => date("Y-m-dd"),
+                  'emi_no_installment' =>  $_POST['advnce_current_instsallment_number_'.$adv->adv_id],
+                  'emi_amount' =>  $_POST['instalment_amount_'.$adv->adv_id],
+                  );
+                insertData($dataadv , "ft_pay_emp_advance");
+                 insertData($dataemi , "ft_pay_emi");
+                echo $adv->adv_name_en ."|".$_POST['instalment_amount_'.$adv->adv_id];
+                  $val_adv = $adv->adv_name_en ."|".$_POST['instalment_amount_'.$adv->adv_id] ;
+                 $adv.$adv->adv_id = $_POST['instalment_amount_'.$adv->adv_id];
+                 }else{
+
+                    $adv.$adv->adv_id = 0;
+
+                 }
+                
+             }else{
+              $dataemi = array(
+                  'emi_emp_unique_id' => $_POST['emp_unique_code'] ,
+                  'emi_pay_date' => date("Y-m-dd"),
+                  'emi_no_installment' =>  $_POST['advnce_current_instsallment_number_'.$adv->adv_id],
+                  'emi_amount' =>  $_POST['instalment_amount_'.$adv->adv_id],
+                  );
+              insertData($dataemi , "ft_pay_emi");
+            $adv1 = $_POST['instalment_amount_'.$adv->adv_id];
+             $adv2 = $_POST['instalment_amount_'.$adv->adv_id];
+              $adv3 = $_POST['instalment_amount_'.$adv->adv_id];
+               $adv4 = $_POST['instalment_amount_'.$adv->adv_id];
+        }
+      }
+       
+            //  $month = date("now")
+           
+        
+            $currentmonth = date('F'); 
+              $datapay = array(
+                'pay_salary_cate_id' => $_POST['pay_salary_cate_id'],
+
+                'pay_month' => $currentmonth ,
+                'pay_year' => "2016" ,
+                'pay_emp_unique_id' => $_POST['emp_unique_code'] ,
+                'pay_basic' => $_POST['pay_basic'] ,
+              'pay_grp' => $pay_gradepay ,
+              'pay_da' => $_POST['pay_da'] ,
+              'pay_special' => $pay_special ,
+              'pay_hra' => $_POST['pay_hra'] ,
+              'pay_sa' => $_POST['pay_sa'] ,
+              'pay_madical' => $madical ,
+              'pay_ca' => $pay_ca,
+              'pay_sp' => $_POST['pay_sp'] ,
+              'pay_others' => $_POST['pay_others'] ,
+              'pay_total_sum' => $_POST['pay_total_sum'] ,
+               'pay_gpf' => $_POST['pay_gpf'] ,
+              'pay_gias' => $_POST['pay_gias'] ,
+              'pay_defined_contribution' => $pay_define ,
+              'pay_fuel_charge' => $pay_fuel_charge ,
+              'pay_professional_tax' => $_POST['pay_professional_tax'] ,
+              'pay_income_tax' => $_POST['pay_income_tax'] ,
+              'pay_ca' => $_POST['pay_ca'] ,
+              'pay_sp' => $_POST['pay_sp'] ,
+              'pay_others' => $_POST['pay_others'] ,
+              'pay_total_sum' => $_POST['pay_total_sum'] ,
+			         'pay_grain_adv' => $adv1 ,
+              'pay_festival_adv' => $adv2,
+               'pay_other_adv' => $adv3,
+        
+               );
+              
+
+           //  insertData($datapay , "ft_pay_register");
+            $this->payroll_model->update_salary($datapay);
+    redirect("Payroll/addsalary");
+            }
+      }
+    }
+    public function pan_adhar_house()
+    {
+     $data['title'] = $this->lang->line('view_all_employee');
+        $data['title_tab'] = $this->lang->line('view_all_employee');
+        $data['details_leave'] = $this->payroll_model->getempdetails();
+
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll_employee_details";
+        $this->template->index($data);
+
+    }
+    public function adddetails()
+    {
+  $emp_id = $this->uri->segment("3");
+           $data['title'] = $this->lang->line('view_all_employee');
+        $data['title_tab'] = $this->lang->line('view_all_employee');
+        $data['details_leave'] = $this->payroll_model->getempdetails( $emp_id );
+$data['house_type'] = $this->payroll_model->house_type();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "add_employee_details";
+        $this->template->index($data);
+    }
+    public function add_deatils()
+    {
+      $this->payroll_model->add_deatils();
+      redirect("Payroll/pan_adhar_house");
+    }
+    public function payslip()
+    {
+    
+            $data['title'] = $this->lang->line('pay_slip');
+        $data['title_tab'] = $this->lang->line('pay_slip');
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payslip";
+        $this->template->index($data);
+    }
+public function pay_slip()
+    {
+     $emp_month = $_POST['pay_month'];
+
+         $emp_id = $_POST['uid'];
+          $data['payslip'] = $this->payroll_model->pay_slip();
+        $data['emp_details'] = $this->payroll_model->getemp($emp_id);
+
+      foreach ($data['emp_details']as $key => $valueca) {
+        $pay_cate_id =$valueca->emp_pay_cate_id;
+
+      }
+      $condi =  array("pay_cate_id"=>$pay_cate_id );
+
+      $data['pay_bill'] = $this->payroll_model->pay_bill_cate($pay_cate_id,$emp_month);
+           $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+          $this->load->view("pay_slip" , $data);
+    }
+
+    /**
+     * logout all session and redirect to home page
+     * @return void
+     */
+    public function logout() {
+        $this->Users_model->destroy_user_login_log();
+        $this->session->sess_destroy();
+        no_cache();
+        redirect("home");
+    }
+    public function paydiduction()
+    {
+      $data['title'] = $this->lang->line('salary_mastar');
+      $data['title_tab'] = $this->lang->line('salary_mastar');
+      $data['pay_salary'] = $this->payroll_model->salary_mastar();
+      $data['module_name'] = "payroll";
+        $data['view_file'] = "paydiduction";
+        $this->template->index($data);
+    }
+
+  public function diduction()
+    {$emp_id = $this->uri->segment(3);
+                 $data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+     $data['cate_salary'] = $this->payroll_model->cate_salary($emp_id);
+      $condi =  array("pay_cate_id"=>$emp_id );
+      $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+      $data['pay_salary'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "pay_diduction_summary";
+        $this->template->index($data);
+    }
+      public function paydd()
+      {
+       
+
+        $f1 = $this->uri->segment(3);
+        $cate_id = $this->uri->segment(4);
+          $month = $this->uri->segment(5);
+          $data['pay_salary'] = $this->payroll_model->pay_diduction($f1,$cate_id,$month);
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "pay_diduction_summary_dd";
+        $this->template->index($data);
+
+      }
+
+
+public function paybillno()
+    {
+       $data['title'] = $this->lang->line('pay_slip');
+        $data['title_tab'] = $this->lang->line('pay_slip');
+        $data['pay_cate'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "paybillno";
+        $this->template->index($data);
+
+
+    }
+
+    public function addallsallary()
+    {
+         $data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+    $data['msg'] = " "; 
+
+      $data['pay_salary'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/addallsallary";
+        $this->template->index($data);
+    }
+    function add_allsallary()
+    { $currentmonth = $_POST['pay_month']; $isk=0;
+ foreach ($_POST['pay_cate'] as $key => $value) {$isk=$isk +1;
+    # code...
+
+  $data['pay_bill'] = $this->payroll_model->month_salary_cate($value,$currentmonth);
+
+    } 
+ $count = count($data['pay_bill']);
+
+ //print_r( count($data['pay_bill']));die();
+if($count == 0 )
+{   $data['pay_salary'] = $this->payroll_model->add_allsallary();
+redirect("payroll/allcate");
+}else{
+   $this->session->set_flashdata('error', "Allrady add salary this Month for this salary head");
+                    redirect("payroll/addallsallary/");
+}
+   
+    }
+    function edit_salary()
+    {
+
+      $pay_id =$this->uri->segment("3");
+      $emp_id =$this->uri->segment("4");
+$data['pay_salary'] = $this->payroll_model->edit_salary($pay_id);
+
+  $data['emp_details'] = $this->payroll_model->getemp($emp_id);
+      
+ foreach ($data['emp_details']as $key => $valueca) {
+        $pay_cate_id =$valueca->emp_pay_cate_id;
+
+      }
+      $condi =  array("pay_cate_id"=>$pay_cate_id );
+      $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+
+  $data['title'] = $this->lang->line('salary_mastar');
+        $data['title_tab'] = $this->lang->line('salary_mastar');
+       $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/edit_salary";
+         $this->template->index($data);
+    }
+    public function edit_slary_emp()
+    {
+        $emp_id =$_POST['pay_salary_cate_id'];
+        $month = $_POST['pay_month'];
+      
+     $this->payroll_model->edit_slary_emp();
+     redirect("payroll/empcate/".$emp_id."/".$month);
+    }
+
+    public function payarriyars()
+    {
+        $data['title'] = $this->lang->line('pay_slip');
+        $data['title_tab'] = $this->lang->line('pay_slip');
+        $data['pay_cate'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "addarriyars";
+        $this->template->index($data);
+
+    }
+   public function add_arriyas()
+   {
+  
+          $emp_id = $_POST["uid"];
+        $pay_month= $_POST["pay_month"];
+         $pay_month_end= $_POST["pay_month_end"];
+  
+     $data['emp_details'] = $this->payroll_model->getemp($emp_id);
+      $data['pay_regi'] = $this->payroll_model->getpaymonth($emp_id,$pay_month);
+ foreach ($data['emp_details']as $key => $valueca) {
+        $pay_cate_id =$valueca->emp_pay_cate_id;
+
+      }
+      $condi =  array("pay_cate_id"=>$pay_cate_id );
+      $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+
+ // print_r($data['emp_details']);
+         $data['module_name'] = "payroll";
+         $data['view_file'] = "add_arriyas";
+          $this->template->index($data);
+
+   } function add_arreyas_emp()
+    {
+     // print_r($_POST);
+
+
+      $data['arriyas'] = $this->payroll_model->add_arriyas();
+      redirect("payroll/showrigtser?uid=".$_POST['emp_unique_id']."&savenotice=1" ,"refresh");
+    }
+
+    public function emplist_current_month()
+    { $data['title'] = "वेतन सूची संशोधन";
+        $data['title_tab'] = "वेतन सूची संशोधन";
+  $data['pay_salary'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/emplist";
+      $this->template->index($data);
+    }
+    public function empcate_mofification()
+    { $data['title'] = "वेतन सूची संशोधन";
+        $data['title_tab'] = "वेतन सूची संशोधन";
+      $emp_id = $this->uri->segment("3");
+                   $emp_month = $this->uri->segment("4");
+
+              $data['pay_salary_master'] = $this->payroll_model->pay_salary_master(); 
+        $data['pay_salary'] = $this->payroll_model->salary_emp_mofification($emp_id,$emp_month);
+         $data['cate_salary'] = $this->payroll_model->cate_salary($emp_id);
+         $data['pay_bill'] = $this->payroll_model->pay_bill_cate($emp_id,$emp_month);
+          $condi =  array("pay_cate_id"=>$emp_id );
+          $data['dataval'] = get_list("ft_pay_salary_category",'pay_cate_id',$condi);
+          $data['module_name'] = "payroll";
+        $data['view_file'] = "payroll/emplist_modification";
+        $this->template->index($data);
+
+    }
+
+
+    function pay_bill()
+    {
+
+        $datapay = array('pbill_month' => $_POST['pay_month'] ,
+                'pbill_cate_id' => $_POST['pay_head'] ,
+                'pbill_year' => date("Y") ,
+                    'pbill_computer_no' => $_POST['computer_bill_number'] ,
+              'pbill_office_no' => $_POST['office_bill_number'] ,
+               'pbill_vocher_no' => $_POST['vocher_bill_number'] ,
+              'pbill_vocher_date' => date("Y-m-d", strtotime($_POST['vocher_bill_date'])) ,
+               );
+              
+        $data['pay_cate'] = $this->payroll_model->pay_bill($datapay);
+
+        echo $data['pay_cate'];
+        if($data['pay_cate'] == "Yes"){
+
+        }else{
+ $data['title'] = $this->lang->line('pay_slip');
+        $data['title_tab'] = $this->lang->line('pay_slip');
+        $data['error'] = "इस महीने के बिल संख्या पहले से ही जोड़ी जा चुकी है ";
+        $data['pay_bill'] = $this->payroll_model->salary_bill( $_POST['pay_month'] ,$_POST['pay_head']);
+        $data['pay_cate'] = $this->payroll_model->salary_mastar();
+        $data['module_name'] = "payroll";
+        $data['view_file'] = "paybillno";
+        $this->template->index($data);
+
+        }
+
+    }
+    public function edit_emp_salary()
+    {
+
+
+ print_r($_POST);
+      $emi = $this->payroll_model->getemp_emi($_POST['emp_unique_code']);
+      if($_POST['emp_unique_code'] != "")
+      {
+           $data['emp_details'] = $this->payroll_model->getemp($_POST['emp_unique_code']);
+            $ifemp = count($data['emp_details']);
+            if($ifemp == 1)
+            {
+              if(isset($_POST['pay_define'])){
+               $pay_define =$_POST['pay_define']; 
+              }else{
+               $pay_define=0;
+              }
+            if(isset($_POST['pay_madical'])){
+               $madical =$_POST['pay_madical'];
+              }else{
+               $madical=0;
+              }
+              if(isset($_POST['pay_gradepay'])){
+               $pay_gradepay =$_POST['pay_gradepay'];
+              }else{
+               $pay_gradepay=0;
+              }
+              if(isset($_POST['pay_special'])){
+               $pay_special =$_POST['pay_special'];
+              }else{
+               $pay_special=0;
+              }
+              $pay_ca = "";
+              if(isset($_POST['pay_ca'])){
+               $pay_ca =$_POST['pay_ca'];
+              }else{
+               $pay_ca =0;
+              }
+
+               if(isset($_POST['pay_fuel_charge'])){
+               $pay_fuel_charge =$_POST['pay_fuel_charge'];
+              }else{
+               $pay_fuel_charge=0;
+              }
+if(isset($_POST['pay_sa'])){
+               $pay_sa =$_POST['pay_sa'];
+              }else{
+               $pay_sa=0;
+              }
+              if(isset($_POST['pay_gpf'])){
+               $pay_gpf =$_POST['pay_gpf'];
+              }else{
+               $pay_gpf=0;
+              }
+               $data['adv'] = $this->payroll_model->advance();
+               foreach ($data['adv']  as $key => $adv)
+
+                {
+
+                
+              if(count($emi) == 0){
+               
+                if($_POST['starting_month_'.$adv->adv_id] != "")
+                {
+
+                  $p=$_POST['advance_amount_'.$adv->adv_id];
+                  echo $p ."<br/>";
+                    $r= $_POST['advance_inetrest_'.$adv->adv_id];
+                    echo $r."<br/>";
+                    $ti=$_POST['pay_income_tax_'.$adv->adv_id];   //yea$rly
+                    $t=10;  
+                   // $t=$t/$ti;
+                    $si = ($p*$r*$t)/100;
+                    echo "Simple Interest : ".$si;
+      
+                    $adv_date =date("Y-m-dd",strtotime($_POST['starting_month_'.$adv->adv_id]));
+                $dataadv = $arrayName = array(
+                  'pea_emp_unique_id' => $_POST['emp_unique_code'] ,
+                 'pea_type_id' => $adv->adv_id,
+                'pea_starting_month' => $adv_date,
+                 'pea_intrest_rate' => $_POST['advance_inetrest_'.$adv->adv_id],
+                 'pea_amount' => $_POST['advance_amount_'.$adv->adv_id],
+                  'pae_interest' => $_POST['advance_inetrest_'.$adv->adv_id],
+                   'pea_emi_amount' => $_POST['instalment_amount_'.$adv->adv_id],
+                   'pea_emi'=> $_POST['pay_income_tax_'.$adv->adv_id],
+                  
+                  );// echo $_POST['starting_month_'.$adv->adv_id]."---fgdfg--"; die();
+               // pre($dataadv ); 
+                $dataemi = array(
+                  'emi_emp_unique_id' => $_POST['emp_unique_code'] ,
+                  'emi_pay_date' => date("Y-m-dd"),
+                  'emi_no_installment' =>  $_POST['advnce_current_instsallment_number_'.$adv->adv_id],
+                  'emi_amount' =>  $_POST['instalment_amount_'.$adv->adv_id],
+                  );
+                //insertData($dataadv , "ft_pay_emp_advance");
+                 insertData($dataemi , "ft_pay_emi");
+                echo $adv->adv_name_en ."|".$_POST['instalment_amount_'.$adv->adv_id];
+                  $val_adv = $adv->adv_name_en ."|".$_POST['instalment_amount_'.$adv->adv_id] ;
+                 $adv.$adv->adv_id = $_POST['instalment_amount_'.$adv->adv_id];
+                 }else{
+
+                    $adv.$adv->adv_id = 0;
+
+                 }
+                
+             }else{
+              $dataemi = array(
+                  'emi_emp_unique_id' => $_POST['emp_unique_code'] ,
+                  'emi_pay_date' => date("Y-m-dd"),
+                  'emi_no_installment' =>  $_POST['advnce_current_instsallment_number_'.$adv->adv_id],
+                  'emi_amount' =>  $_POST['instalment_amount_'.$adv->adv_id],
+                  );
+             // insertData($dataemi , "ft_pay_emi");
+            $adv1 = $_POST['instalment_amount_'.$adv->adv_id];
+             $adv2 = $_POST['instalment_amount_'.$adv->adv_id];
+              $adv3 = $_POST['instalment_amount_'.$adv->adv_id];
+               $adv4 = $_POST['instalment_amount_'.$adv->adv_id];
+        }
+      }
+       
+            //  $month = date("now")
+           
+        
+            $currentmonth = date('F'); 
+              $datapay = array(
+                'pay_salary_cate_id' => $_POST['pay_salary_cate_id'],
+
+                'pay_month' => $currentmonth ,
+                'pay_year' => "2016" ,
+                'pay_emp_unique_id' => $_POST['emp_unique_code'] ,
+                'pay_basic' => $_POST['pay_basic'] ,
+              'pay_grp' => $pay_gradepay ,
+              'pay_da' => $_POST['pay_da'] ,
+              'pay_special' => $pay_special ,
+              'pay_hra' => $_POST['pay_hra'] ,
+              'pay_sa' => $pay_sa ,
+              'pay_madical' => $madical ,
+              'pay_ca' => $pay_ca,
+              'pay_sp' => $_POST['pay_sp'] ,
+              'pay_others' => $_POST['pay_others'] ,
+              'pay_total_sum' => $_POST['pay_total_sum'] ,
+               'pay_gpf' => $pay_gpf ,
+              'pay_gias' => $_POST['pay_gias'] ,
+              'pay_defined_contribution' => $pay_define ,
+              'pay_fuel_charge' => $pay_fuel_charge ,
+              'pay_professional_tax' => $_POST['pay_professional_tax'] ,
+              'pay_income_tax' => $_POST['pay_income_tax'] ,
+              'pay_ca' => $_POST['pay_ca'] ,
+              'pay_sp' => $_POST['pay_sp'] ,
+              'pay_others' => $_POST['pay_others'] ,
+              'pay_total_sum' => $_POST['pay_total_sum'] ,
+               'pay_grain_adv' => $adv1 ,
+              'pay_festival_adv' => $adv2,
+               'pay_other_adv' => $adv3,
+        'pay_id' => $_POST['id'] ,
+               );
+              
+
+           //  insertData($datapay , "ft_pay_register");
+            $this->payroll_model->update_salary($datapay);
+//   redirect("Payroll/addsalary");
+
+    }
+    }
+
+    }
+
+}
